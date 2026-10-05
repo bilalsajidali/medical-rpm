@@ -1,0 +1,62 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;  /* headings, big numbers */
+  --font-sans: "Inter", system-ui, sans-serif;                 /* body, tables */
+
+  /* Base */
+  --color-bg: #F3F5F9;          /* page background */
+  --color-surface: #FFFFFF;     /* cards */
+  --color-subtle: #F8FAFC;      /* inputs, inner boxes */
+  --color-muted-bg: #EEF1F5;    /* avatars, tracks, neutral pills */
+  --color-border: #E6E9EF;      /* card borders */
+  --color-border-strong: #D5DAE2; /* buttons, inputs */
+  --color-divider: #EEF1F5;     /* table rows */
+
+  /* Text */
+  --color-ink: #0F172A;         /* main text + primary button */
+  --color-ink-muted: #5B6474;   /* labels, captions */
+
+  /* Accent (links, active tab, chart line, progress) */
+  --color-accent: #2563EB;
+  --color-accent-soft: #DBE6FD;
+  --color-accent-ink: #1E40AF;
+
+  /* Status — ONLY for patient readings */
+  --color-critical: #DC2626;  --color-critical-bg: #FEE2E2;  --color-critical-ink: #B91C1C;
+  --color-atrisk:   #F59E0B;  --color-atrisk-bg:   #FEF3C7;  --color-atrisk-ink:   #B45309;
+  --color-normal:   #16A34A;  --color-normal-bg:   #DCFCE7;  --color-normal-ink:   #15803D;
+  --color-missed:   #94A3B8;  --color-missed-bg:   #EEF1F5;  --color-missed-ink:   #475569;
+
+  /* Chart */
+  --color-chart-diastolic: #93A9D8;
+  --color-chart-grid: #EEF1F5;
+
+  /* Radius */
+  --radius-card: 20px;
+  --radius-inner: 14px;
+}
+html, body { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* App-level basics (no new tokens) */
+body { margin: 0; -webkit-font-smoothing: antialiased; }
+button:not(:disabled) { cursor: pointer; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Print: the patient "Download PDF" prints only the element marked .print-area */
+.print-only { display: none; }
+@media print {
+  @page { margin: 16mm; }
+  html, body { background: var(--color-surface); }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; border: none !important; }
+  .print-area .print-hide { display: none !important; }
+  .print-area .print-only { display: block; }
+  .print-area table { min-width: 0 !important; }
+}
