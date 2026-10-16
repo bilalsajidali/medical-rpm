@@ -13,7 +13,7 @@ import { usePatient, useReadings } from '@/data/queries/patients';
 import type { Reading, VitalKey } from '@/data/types';
 import { cn } from '@/lib/cn';
 import { ageOf, formatTime, formatWhen, patientName } from '@/lib/format';
-import { latestWith, PATIENT_VITALS, vitalStatusOf } from '@/features/patient/vitals';
+import { historyPoints, latestWith, PATIENT_VITALS, vitalStatusOf } from '@/features/patient/vitals';
 
 const RANGES = [{ value: '7', label: '7D' }, { value: '30', label: '30D' }, { value: '90', label: '90D' }] as const;
 type Range = (typeof RANGES)[number]['value'];
@@ -71,7 +71,8 @@ export function FeaturedPatient({ patientId }: { patientId: string }) {
           const meta = STAFF_LABEL[v.key];
           return (
             <VitalCard key={v.key} label={meta.label} value={r ? `${v.value(r)}${v.key === 'spo2' ? '%' : ''}` : '—'} unit=""
-              status={st?.status ?? null} size="sm" pillBelow timestamp={r ? meta.sub(r) : 'No reading'} className="p-[18px]" />
+              status={st?.status ?? null} size="sm" pillBelow timestamp={r ? meta.sub(r) : 'No reading'} className="p-[18px]"
+              history={historyPoints(readings.data, v, Number(range))} historyDays={Number(range)} historyUnit={v.unit} />
           );
         })}
         <Card padding="none" className="col-span-2 flex flex-col gap-2 p-[18px]">

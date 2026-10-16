@@ -1,5 +1,6 @@
 import { subDays } from 'date-fns';
 import type { ChartVital } from '@/components/charts/VitalTrendChart';
+import type { PeekPoint } from '@/components/charts/VitalPeek';
 import type { Reading, Status, VitalKey } from '@/data/types';
 import { worstStatus } from '@/lib/rules/status';
 
@@ -49,6 +50,15 @@ export function sparkValues(readings: Reading[], v: PatientVital, days = 7, now 
   return readings
     .filter((r) => r.takenAt >= since && hasVital(r, v))
     .map((r) => r[v.main] as number)
+    .reverse();
+}
+
+/** Readings of this vital from the last `days` days for the card peek, oldest → newest. */
+export function historyPoints(readings: Reading[], v: PatientVital, days = 30, now = new Date()): PeekPoint[] {
+  const since = subDays(now, days).toISOString();
+  return readings
+    .filter((r) => r.takenAt >= since && hasVital(r, v))
+    .map((r) => ({ at: r.takenAt, value: r[v.main] as number, display: v.value(r) }))
     .reverse();
 }
 

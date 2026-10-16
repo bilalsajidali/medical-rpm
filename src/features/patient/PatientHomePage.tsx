@@ -20,7 +20,7 @@ import { PatientTrendCard } from './PatientTrendCard';
 import { ReadingHistoryTable } from './ReadingHistoryTable';
 import { ScheduleCard } from './ScheduleCard';
 import { dueBanner, todayStatus } from './schedule';
-import { greeting, latestWith, MEAL_TEXT, PATIENT_VITALS, sparkValues, vitalStatusOf } from './vitals';
+import { greeting, historyPoints, latestWith, MEAL_TEXT, PATIENT_VITALS, sparkValues, vitalStatusOf } from './vitals';
 
 function latestCards(readings: Reading[]) {
   return PATIENT_VITALS.map((v) => {
@@ -29,7 +29,7 @@ function latestCards(readings: Reading[]) {
     const meal = v.key === 'glucose' && r?.mealTiming ? `, ${MEAL_TEXT[r.mealTiming]}` : '';
     return {
       v, value: r ? v.value(r) : '—', status: st?.status ?? null, direction: st?.direction,
-      timestamp: r ? `${formatWhen(r.takenAt)}${meal}` : 'No reading yet', spark: sparkValues(readings, v),
+      timestamp: r ? `${formatWhen(r.takenAt)}${meal}` : 'No reading yet', spark: sparkValues(readings, v), history: historyPoints(readings, v),
     };
   });
 }
@@ -137,7 +137,7 @@ export default function PatientHomePage() {
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
             {cards.map((c) => (
               <VitalCard key={c.v.key} label={c.v.label} value={c.value} unit={c.v.unit} status={c.status} direction={c.direction}
-                audience="patient" size="lg" timestamp={c.timestamp} spark={c.spark} />
+                audience="patient" size="lg" timestamp={c.timestamp} spark={c.spark} history={c.history} />
             ))}
           </div>
         </section>

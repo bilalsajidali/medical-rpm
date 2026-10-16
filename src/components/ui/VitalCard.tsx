@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Sparkline } from '@/components/charts/Sparkline';
+import { VitalPeek, type PeekPoint } from '@/components/charts/VitalPeek';
 import { cn } from '@/lib/cn';
 import type { PatientStatus } from '@/lib/rules/status';
 import { StatusPill, type Audience } from './StatusPill';
@@ -12,6 +14,12 @@ export interface VitalCardProps {
   direction?: 'above' | 'below';
   timestamp?: string;
   spark?: number[];
+  /** 30-day readings, oldest → newest; hovering / focusing the card expands it to show them */
+  history?: PeekPoint[];
+  /** days covered by `history` (default 30) */
+  historyDays?: number;
+  /** unit shown in the peek when the card itself shows none (staff grid) */
+  historyUnit?: string;
   /** desktop patient (38px), staff (36px), compact grid (28–30px) */
   size?: 'lg' | 'md' | 'sm';
   /** pill under the value instead of next to the label (mobile + doctor grid) */
@@ -26,14 +34,21 @@ const VALUE = {
 };
 
 export function VitalCard({
-  label, value, unit, status, audience = 'staff', direction, timestamp, spark, size = 'md', pillBelow, className,
+  label, value, unit, status, audience = 'staff', direction, timestamp, spark, history, historyDays = 30, historyUnit, size = 'md', pillBelow, className,
 }: VitalCardProps) {
+  const { ref: peekRef, ...peek } = usePeek(!!history && history.length > 1);
   const patient = audience === 'patient';
   const pill = status && (
     <StatusPill status={status} audience={audience} direction={direction} size={patient ? 'md' : 'sm'} className={cn(patient && size === 'lg' && 'px-3 py-1 text-sm')} />
   );
-  return (
-    <div className={cn('flex flex-col rounded-card border border-border bg-surface', size === 'sm' ? 'gap-1.5 p-4' : 'gap-2.5 p-5', className)}>
+  const wrapped = peek.enabled && !!history;
+  const card = (
+    <div className={cn(
+      'flex flex-col rounded-card border border-border bg-surface', size === 'sm' ? 'gap-1.5 p-4' : 'gap-2.5 p-5',
+      // inside the peek wrapper: fill it, and sink back a little while the peek is up
+      wrapped && cn('h-full transition-[scale,opacity] duration-500 ease-[var(--ease-spring)] motion-reduce:transition-none', peek.open && 'scale-[0.97] opacity-60'),
+      className,
+    )}>
       <div className="flex items-center justify-between gap-2">
         <span className={cn('font-medium text-ink-muted', patient && size === 'lg' ? 'text-base' : 'text-sm')}>{label}</span>
         {!pillBelow && pill}
@@ -49,4 +64,50 @@ export function VitalCard({
       {timestamp && <span className={cn(patient ? 'text-[15px]' : 'text-xs font-medium', 'text-ink-muted')}>{timestamp}</span>}
     </div>
   );
+  if (!wrapped) return card;
+  return (
+    <div
+      className={cn('relative rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent', peek.open && 'z-30')}
+      tabIndex={0}
+      aria-label={`${label}: ${value} ${historyUnit ?? unit}. Show last ${historyDays} days`}
+      aria-expanded={peek.open}
+      ref={peekRef}
+      {...peek.handlers}
+    >
+      {card}
+      <VitalPeek open={peek.open} label={label} unit={historyUnit ?? unit} points={history} days={historyDays} anchor={peek.anchor} />
+    </div>
+  );
+}
+
+/** Hover intent (only on devices with a real hover) + keyboard focus. */
+function usePeek(available: boolean) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<'left' | 'right'>('left');
+  const ref = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const canHover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const later = (v: boolean, ms: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      // grow toward the side with more room so a wide panel never runs off screen
+      const r = ref.current?.getBoundingClientRect();
+      if (v && r) setAnchor(r.left + r.width / 2 > window.innerWidth / 2 ? 'right' : 'left');
+      setOpen(v);
+    }, ms);
+  };
+  return {
+    enabled: available,
+    open,
+    anchor,
+    ref,
+    handlers: {
+      onPointerEnter: (e: PointerEvent) => { if (canHover && e.pointerType === 'mouse') later(true, 140); },
+      onPointerLeave: () => later(false, 90),
+      onFocus: () => later(true, 0),
+      onBlur: () => later(false, 0),
+      onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Escape') later(false, 0); },
+    },
+  };
 }
