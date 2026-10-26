@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { cn } from '@/lib/cn';
 import { focusRing } from './Button';
 
@@ -7,6 +7,8 @@ export interface NavItem {
   label: string;
   /** match the route exactly (home routes) */
   end?: boolean;
+  /** extra path prefixes that also highlight this item (pages that live "inside" it) */
+  activeFor?: string[];
 }
 
 export interface TopNavProps {
@@ -18,6 +20,7 @@ export interface TopNavProps {
 
 /** Pill navigation: white container, active item black. */
 export function TopNav({ items, size = 'md', className, ...rest }: TopNavProps) {
+  const { pathname } = useLocation();
   return (
     <nav
       aria-label={rest['aria-label']}
@@ -28,11 +31,14 @@ export function TopNav({ items, size = 'md', className, ...rest }: TopNavProps) 
           key={item.to}
           to={item.to}
           end={item.end}
-          className={({ isActive }) => cn(
-            'shrink-0 rounded-full whitespace-nowrap no-underline transition-colors', focusRing,
-            size === 'lg' ? 'px-5 py-[11px] text-[15px]' : 'px-[18px] py-2.5 text-sm',
-            isActive ? 'bg-ink font-semibold text-surface' : 'font-medium text-ink hover:bg-bg',
-          )}
+          className={({ isActive: matched }) => {
+            const isActive = matched || !!item.activeFor?.some((p) => pathname.startsWith(p));
+            return cn(
+              'shrink-0 rounded-full whitespace-nowrap no-underline transition-colors', focusRing,
+              size === 'lg' ? 'px-5 py-[11px] text-[15px]' : 'px-[18px] py-2.5 text-sm',
+              isActive ? 'bg-ink font-semibold text-surface' : 'font-medium text-ink hover:bg-bg',
+            );
+          }}
         >
           {item.label}
         </NavLink>

@@ -1,9 +1,9 @@
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useCurrentUser } from '@/auth/session';
-import { Button } from '@/components/ui/Button';
+import { Button, focusRing } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -13,6 +13,7 @@ import { PillSelect } from '@/components/ui/Select';
 import { EmptyState, QueryState } from '@/components/ui/States';
 import type { PatientSummary } from '@/data/api/patients';
 import { usePatients } from '@/data/queries/patients';
+import { cn } from '@/lib/cn';
 import { downloadCsv } from '@/lib/csv';
 import { patientName, readingSummary } from '@/lib/format';
 import { BILLING_RESULT_LABEL } from '@/lib/rules/billing';
@@ -20,6 +21,7 @@ import { compareStatus, type PatientStatus } from '@/lib/rules/status';
 import { CONDITIONS } from '@/lib/seed/constants';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { AddPatientDialog } from '@/features/admin/AddPatientDialog';
+import { ChartDialog } from './ChartDialog';
 import { chartPath } from './paths';
 import { patientColumns } from './patientColumns';
 import { StatusSummaryCards } from './StatusSummaryCards';
@@ -28,6 +30,12 @@ type StatusFilter = 'all' | PatientStatus;
 type SortKey = 'latest' | 'name' | 'status';
 
 const RANK: Record<PatientStatus, number> = { critical: 3, atrisk: 2, missed: 1, normal: 0 };
+const columns = patientColumns();
+
+/** `?status=critical` etc. (dashboard KPI cards link here pre-filtered) */
+function statusParam(v: string | null): StatusFilter {
+  return v !== null && Object.hasOwn(RANK, v) ? (v as PatientStatus) : 'all';
+}
 
 function sortRows(rows: PatientSummary[], key: SortKey): PatientSummary[] {
   return [...rows].sort((a, b) => {
@@ -56,12 +64,13 @@ export default function PatientsListPage() {
   const patients = usePatients();
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get('q') ?? '');
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [status, setStatus] = useState<StatusFilter>(() => statusParam(params.get('status')));
   const [condition, setCondition] = useState('all');
   const [billing, setBilling] = useState<'all' | 'ready' | 'not_yet'>('all');
   const [sort, setSort] = useState<SortKey>('latest');
   const [adding, setAdding] = useState(false);
-  const columns = useMemo(() => patientColumns((id) => chartPath(user?.role, id)), [user?.role]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const canOpenChart = chartPath(user?.role, '') !== null;
 
   const all = useMemo(() => patients.data ?? [], [patients.data]);
   const filtered = useMemo(() => {
@@ -79,6 +88,13 @@ export default function PatientsListPage() {
   const active = all.filter((s) => s.patient.rpmStatus === 'active').length;
   return (
     <>
+      {user?.role === 'doctor' && (
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-ink-muted">
+          <Link to="/doctor" className={cn('rounded text-ink-muted no-underline hover:text-ink', focusRing)}>Dashboard</Link>
+          <span aria-hidden="true">/</span>
+          <span className="font-medium text-ink" aria-current="page">Patients</span>
+        </nav>
+      )}
       <PageHeader
         size={user?.role === 'doctor' ? 'display' : 'page'}
         title="Patients"
@@ -111,13 +127,16 @@ export default function PatientsListPage() {
           empty={<EmptyState title="No patients yet" body={isAdmin ? 'Add your first patient to start monitoring.' : 'Patients assigned to you will show here.'} />}>
           {() => (
             <DataTable
-              data={filtered} columns={columns} getRowId={(s) => s.patient.id} minWidth={1100} pageSize={10} noun="patients"
+              data={filtered} columns={columns} getRowId={(s) => s.patient.id} minWidth={1000} pageSize={10} noun="patients"
+              onRowClick={canOpenChart ? (s) => setOpenId(s.patient.id) : undefined}
+              rowLabel={(s) => `Open chart for ${patientName(s.patient)}`}
               resetKey={`${q}|${status}|${condition}|${billing}|${sort}`}
               empty={<EmptyState title="No patients match" body="Try another search or filter." />}
             />
           )}
         </QueryState>
       </Card>
+      {canOpenChart && <ChartDialog patientId={openId} onClose={() => setOpenId(null)} />}
       {isAdmin && <AddPatientDialog open={adding} onOpenChange={setAdding} />}
     </>
   );

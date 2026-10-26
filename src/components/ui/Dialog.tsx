@@ -11,13 +11,15 @@ export interface DialogProps {
   description?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** keep the title for screen readers only (content brings its own heading) */
+  hideTitle?: boolean;
 }
 
-const WIDTH = { sm: 'max-w-[420px]', md: 'max-w-[520px]', lg: 'max-w-[680px]' };
+const WIDTH = { sm: 'max-w-[420px]', md: 'max-w-[520px]', lg: 'max-w-[680px]', xl: 'h-[calc(100dvh-32px)] max-w-[1240px] bg-bg' };
 
 /** Centered modal (shadcn-style wrapper over Radix Dialog, restyled to our tokens). */
-export function Dialog({ open, onOpenChange, title, description, children, footer, size = 'md' }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, children, footer, size = 'md', hideTitle }: DialogProps) {
   return (
     <RD.Root open={open} onOpenChange={onOpenChange}>
       <RD.Portal>
@@ -28,18 +30,18 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
             'rounded-card border border-border bg-surface outline-none', WIDTH[size],
           )}
         >
-          <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
-            <div className="flex flex-col gap-1">
+          <div className={cn('flex items-start justify-between gap-3 px-6 pt-6 pb-4', hideTitle && 'pt-4 pb-3')}>
+            <div className={cn('flex flex-col gap-1', hideTitle && 'sr-only')}>
               <RD.Title className="m-0 font-display text-xl font-semibold">{title}</RD.Title>
               {description
                 ? <RD.Description className="m-0 text-sm text-ink-muted">{description}</RD.Description>
                 : <RD.Description className="sr-only">{title}</RD.Description>}
             </div>
             <RD.Close asChild>
-              <IconButton aria-label="Close" size={36} icon={<X size={16} />} />
+              <IconButton aria-label="Close" size={36} icon={<X size={16} />} className={hideTitle ? 'ml-auto' : undefined} />
             </RD.Close>
           </div>
-          <div className="overflow-y-auto px-6 pb-2">{children}</div>
+          <div className={cn('overflow-y-auto px-6 pb-2', size === 'xl' && 'flex grow flex-col gap-6 pb-6 *:shrink-0')}>{children}</div>
           {footer && <div className="flex flex-wrap justify-end gap-2.5 px-6 pt-4 pb-6">{footer}</div>}
         </RD.Content>
       </RD.Portal>

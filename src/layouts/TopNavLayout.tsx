@@ -18,8 +18,8 @@ const PATIENT_NAV: NavItem[] = [
 ];
 
 const DOCTOR_NAV: NavItem[] = [
-  { to: '/doctor', label: 'Dashboard', end: true },
-  { to: '/doctor/patients', label: 'Patients' },
+  // the patients list and charts read as part of the dashboard, so there is no separate "Patients" tab
+  { to: '/doctor', label: 'Dashboard', end: true, activeFor: ['/doctor/patients'] },
   { to: '/doctor/escalations', label: 'Escalations' },
 ];
 

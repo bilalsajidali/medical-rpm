@@ -28,9 +28,16 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'history', label: 'Medical history' }, { value: 'thresholds', label: 'Thresholds' }, { value: 'time', label: 'Time log' },
 ];
 
-/** Shared patient chart (nurse + doctor). Doctors can edit thresholds/history and review escalations. */
+/** Chart route (deep links). Lists and the dashboard open the same chart in a popup (ChartDialog). */
 export default function PatientChartPage() {
   const { id } = useParams<{ id: string }>();
+  const summary = usePatient(id);
+  usePageTitle(summary.data ? patientName(summary.data.patient) : 'Patient chart');
+  return <PatientChart patientId={id} />;
+}
+
+/** Shared patient chart (nurse + doctor). Doctors can edit thresholds/history and review escalations. */
+export function PatientChart({ patientId: id, embedded }: { patientId: string | undefined; embedded?: boolean }) {
   const user = useCurrentUser();
   const isDoctor = user?.role === 'doctor';
   const isNurse = user?.role === 'nurse';
@@ -43,7 +50,6 @@ export default function PatientChartPage() {
   const [calling, setCalling] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const logged = useRef<string | null>(null);
-  usePageTitle(summary.data ? patientName(summary.data.patient) : 'Patient chart');
 
   const logViewMutate = logView.mutate;
   useEffect(() => {
@@ -67,11 +73,17 @@ export default function PatientChartPage() {
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-ink-muted">
-        <Link to={base} className={cn('rounded text-ink-muted no-underline hover:text-ink', focusRing)}>Patients</Link>
-        <span aria-hidden="true">/</span>
-        <span className="font-medium text-ink" aria-current="page">{patientName(s.patient)}</span>
-      </nav>
+      {!embedded && (
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-ink-muted">
+          {isDoctor && <>
+            <Link to="/doctor" className={cn('rounded text-ink-muted no-underline hover:text-ink', focusRing)}>Dashboard</Link>
+            <span aria-hidden="true">/</span>
+          </>}
+          <Link to={base} className={cn('rounded text-ink-muted no-underline hover:text-ink', focusRing)}>Patients</Link>
+          <span aria-hidden="true">/</span>
+          <span className="font-medium text-ink" aria-current="page">{patientName(s.patient)}</span>
+        </nav>
+      )}
       <ChartHeader summary={s} isDoctor={isDoctor} onEditThresholds={() => setTab('thresholds')} onAddNote={goNote}
         onCall={isNurse ? () => setCalling(true) : undefined} />
       {isNurse && <ChartTimer patientId={s.patient.id} />}

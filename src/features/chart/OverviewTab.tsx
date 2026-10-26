@@ -1,4 +1,3 @@
-import { subDays } from 'date-fns';
 import { useState } from 'react';
 import { focusRing } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -10,22 +9,28 @@ import type { PatientSummary } from '@/data/api/patients';
 import type { Reading, VitalKey } from '@/data/types';
 import { cn } from '@/lib/cn';
 import { VITAL_LABEL, VITAL_UNIT } from '@/lib/format';
+import { averageOfDays, dailyAverages, formatAvg, periodAverage, vitalValues, withinDays } from '@/lib/rules/averages';
 import { BillingCard, MedicalSummary, ThresholdSummary, TimelineCard } from './OverviewSide';
 import { StaffTrendCard } from './StaffTrendCard';
 import { staffReadingColumns } from './staffReadingColumns';
 
-const RANGES = [{ value: '7', label: '7D' }, { value: '30', label: '30D' }, { value: '90', label: '90D' }] as const;
+const RANGES = [{ value: '7', label: '7D' }, { value: '15', label: '15D' }, { value: '30', label: '30D' }, { value: '90', label: '90D' }] as const;
 type Range = (typeof RANGES)[number]['value'];
-const RANGE_TEXT: Record<Range, string> = { '7': 'last 7 days', '30': 'last 30 days', '90': 'last 90 days' };
+const RANGE_TEXT: Record<Range, string> = { '7': 'last 7 days', '15': 'last 15 days', '30': 'last 30 days', '90': 'last 90 days' };
+/** always shown in the card peek, whatever range is picked */
+const PERIODS = [7, 15, 30];
 
-function stats(readings: Reading[], key: VitalKey) {
-  const withV = readings.filter((r) => r[key] !== undefined);
-  const vals = withV.map((r) => r[key] as number);
+/** Min / max over every reading; average = mean of daily averages (see rules/averages). */
+function stats(shown: Reading[], all: Reading[], key: VitalKey, rangeDays: number) {
+  const values = vitalValues(shown, key);
+  const days = dailyAverages(values);
+  const withV = values.map((v) => v.reading);
   const statusOf = (r: Reading) => r.flags.find((f) => f.vital === key)?.status ?? 'normal';
   return {
-    min: vals.length ? Math.min(...vals) : null,
-    max: vals.length ? Math.max(...vals) : null,
-    avg: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null,
+    min: values.length ? Math.min(...values.map((v) => v.value)) : null,
+    max: values.length ? Math.max(...values.map((v) => v.value)) : null,
+    avg: formatAvg(averageOfDays(days), key),
+    peek: { vital: key, days, rangeDays, periods: PERIODS.map((d) => ({ label: `${d} days`, avg: periodAverage(all, key, d) })) },
     counts: {
       critical: withV.filter((r) => statusOf(r) === 'critical').length,
       atrisk: withV.filter((r) => statusOf(r) === 'atrisk').length,
@@ -39,15 +44,14 @@ export function OverviewTab({ summary, readings, timeline, timelineLoading, onTa
   onTab: (tab: 'readings' | 'notes' | 'thresholds') => void; canEditThresholds: boolean;
 }) {
   const [range, setRange] = useState<Range>('30');
-  const since = subDays(new Date(), Number(range)).toISOString();
-  const shown = readings.filter((r) => r.takenAt >= since);
+  const shown = withinDays(readings, Number(range));
   const statKeys: VitalKey[] = ['systolic', 'diastolic', 'pulse', summary.patient.devices.includes('glucose') ? 'glucose' : 'spo2'];
 
   return (
     <div className="flex flex-wrap items-start gap-4">
       <div className="flex min-w-0 flex-[2_1_640px] flex-col gap-4">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
-          {statKeys.map((k) => <MinMaxAvgCard key={k} label={VITAL_LABEL[k]} unit={VITAL_UNIT[k]} {...stats(shown, k)} />)}
+          {statKeys.map((k) => <MinMaxAvgCard key={k} label={VITAL_LABEL[k]} unit={VITAL_UNIT[k]} {...stats(shown, readings, k, Number(range))} />)}
         </div>
         <StaffTrendCard
           readings={shown} thresholds={summary.patient.thresholds} rangeLabel={RANGE_TEXT[range]}

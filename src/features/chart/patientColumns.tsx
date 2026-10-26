@@ -1,8 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { Link } from 'react-router';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { buttonClasses } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatusPill } from '@/components/ui/StatusPill';
 import type { PatientSummary } from '@/data/api/patients';
@@ -19,7 +17,7 @@ function MonthCounts({ s }: { s: PatientSummary }) {
   );
 }
 
-export function patientColumns(chartPath: (id: string) => string | null): ColumnDef<PatientSummary>[] {
+export function patientColumns(): ColumnDef<PatientSummary>[] {
   return [
     {
       id: 'patient', header: 'Patient', enableSorting: false,
@@ -58,13 +56,6 @@ export function patientColumns(chartPath: (id: string) => string | null): Column
     {
       id: 'billing', header: 'Billing', enableSorting: false,
       cell: ({ row }) => row.original.month.billing.result === 'ready' ? <Badge variant="accent">Ready</Badge> : <Badge variant="neutral">Not yet</Badge>,
-    },
-    {
-      id: 'action', header: 'Action', enableSorting: false, meta: { align: 'right' },
-      cell: ({ row }) => {
-        const to = chartPath(row.original.patient.id);
-        return to ? <Link to={to} className={buttonClasses('secondary', 'sm')}>Open chart</Link> : <span className="text-xs text-ink-muted">—</span>;
-      },
     },
   ];
 }

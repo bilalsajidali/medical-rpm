@@ -1,6 +1,8 @@
 import { format } from 'date-fns';
 import { useId, useMemo, useState, type PointerEvent } from 'react';
 import { cn } from '@/lib/cn';
+import { averageOfDays, dailyAverages } from '@/lib/rules/averages';
+import { smoothPath } from './smoothPath';
 
 export interface PeekPoint {
   /** ISO timestamp */
@@ -14,24 +16,6 @@ export interface PeekPoint {
 const W = 300;
 const H = 96;
 const PAD = 8;
-
-/** Smooth path through points (Catmull-Rom → cubic Bézier). */
-function smoothPath(pts: [number, number][]): string {
-  if (pts.length < 2) return '';
-  let d = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [x0, y0] = pts[i - 1] ?? pts[i];
-    const [x1, y1] = pts[i];
-    const [x2, y2] = pts[i + 1];
-    const [x3, y3] = pts[i + 2] ?? pts[i + 1];
-    const c1x = x1 + (x2 - x0) / 6;
-    const c1y = y1 + (y2 - y0) / 6;
-    const c2x = x2 - (x3 - x1) / 6;
-    const c2y = y2 - (y3 - y1) / 6;
-    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
-  }
-  return d;
-}
 
 /**
  * The expanded layer a VitalCard grows into on hover/focus: 30-day trend with
@@ -60,7 +44,8 @@ export function VitalPeek({ open, label, unit, points, days = 30, anchor = 'left
     ]);
     const line = smoothPath(xy);
     const area = xy.length > 1 ? `${line} L${W},${H} L0,${H} Z` : '';
-    const avg = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+    // day-weighted: average each day's readings, then the days
+    const avg = averageOfDays(dailyAverages(points)) ?? 0;
     const lo = points[vals.indexOf(min)];
     const hi = points[vals.indexOf(max)];
     return { xy, line, area, avg, lo, hi };

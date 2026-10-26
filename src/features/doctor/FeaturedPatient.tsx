@@ -1,6 +1,5 @@
 import { subDays } from 'date-fns';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { ChartLegend, VitalTrendChart } from '@/components/charts/VitalTrendChart';
 import { Avatar } from '@/components/ui/Avatar';
 import { focusRing } from '@/components/ui/Button';
@@ -13,6 +12,7 @@ import { usePatient, useReadings } from '@/data/queries/patients';
 import type { Reading, VitalKey } from '@/data/types';
 import { cn } from '@/lib/cn';
 import { ageOf, formatTime, formatWhen, patientName } from '@/lib/format';
+import { averageOfDays, dailyAverages, vitalValues } from '@/lib/rules/averages';
 import { historyPoints, latestWith, PATIENT_VITALS, vitalStatusOf } from '@/features/patient/vitals';
 
 const RANGES = [{ value: '7', label: '7D' }, { value: '30', label: '30D' }, { value: '90', label: '90D' }] as const;
@@ -24,13 +24,14 @@ const STAFF_LABEL: Record<string, { label: string; sub: (r: Reading) => string }
   glucose: { label: 'Glucose', sub: (r) => `mg/dL · ${formatTime(r.takenAt)}` },
 };
 
+/** day-weighted average (each day's readings first, then the days) */
 const avg = (rs: Reading[], k: VitalKey) => {
-  const v = rs.map((r) => r[k]).filter((x): x is number => x !== undefined);
-  return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+  const v = averageOfDays(dailyAverages(vitalValues(rs, k)));
+  return v === null ? null : Math.round(v);
 };
 
 /** The most recently escalated patient: BP chart, 4 vital cards and the latest nurse note. */
-export function FeaturedPatient({ patientId }: { patientId: string }) {
+export function FeaturedPatient({ patientId, onOpenChart }: { patientId: string; onOpenChart: (patientId: string) => void }) {
   const summary = usePatient(patientId);
   const readings = useReadings(patientId);
   const note = useLatestStaffNote(patientId);
@@ -46,13 +47,14 @@ export function FeaturedPatient({ patientId }: { patientId: string }) {
     <div className="flex flex-wrap gap-4">
       <Card padding="lg" className="flex min-w-0 flex-[2_1_560px] flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link to={`/doctor/patients/${p.id}`} className={cn('flex items-center gap-3 rounded-inner text-ink no-underline', focusRing)}>
+          <button type="button" onClick={() => onOpenChart(p.id)} aria-label={`Open chart for ${patientName(p)}`}
+            className={cn('flex items-center gap-3 rounded-inner text-left text-ink', focusRing)}>
             <Avatar firstName={p.firstName} lastName={p.lastName} size={44} />
             <span className="flex flex-col">
               <span className="font-display text-lg font-semibold">{patientName(p)}</span>
               <span className="text-[13px] text-ink-muted">{p.sex}, {ageOf(p.dob)} · {p.conditions[0]} · MRN {p.mrn}</span>
             </span>
-          </Link>
+          </button>
           <SegmentedTabs aria-label="Range" size="sm" value={range} onChange={setRange} options={[...RANGES]} />
         </div>
         <div className="flex flex-wrap items-end justify-between gap-3">
